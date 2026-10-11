@@ -27,3 +27,5 @@ Thumbs.db
 tomcat.*/
 work/
 temp/
+.rocketride/
+.claude/

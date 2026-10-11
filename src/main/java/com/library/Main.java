@@ -20,7 +20,10 @@ public class Main {
 
     public static void main(String[] args) {
         int port = 8080;
-        String envPort = System.getenv("SERVER_PORT");
+        String envPort = System.getenv("PORT");
+        if (envPort == null || envPort.trim().isEmpty()) {
+            envPort = System.getenv("SERVER_PORT");
+        }
         if (envPort != null && !envPort.trim().isEmpty()) {
             try {
                 port = Integer.parseInt(envPort.trim());
@@ -53,6 +56,15 @@ public class Main {
 
             Context context = tomcat.addWebapp("", webappDir.getAbsolutePath());
             context.setAllowCasualMultipartParsing(true);
+
+            // Ensure compiled classes in target/classes are visible to Tomcat webapp classloader
+            File additionWebInfClasses = new File("target/classes");
+            if (additionWebInfClasses.exists()) {
+                org.apache.catalina.WebResourceRoot resources = new org.apache.catalina.webresources.StandardRoot(context);
+                resources.addPreResources(new org.apache.catalina.webresources.DirResourceSet(
+                        resources, "/WEB-INF/classes", additionWebInfClasses.getAbsolutePath(), "/"));
+                context.setResources(resources);
+            }
 
             logger.info("Configured webapp context at '{}' pointing to '{}'", "", webappDir.getAbsolutePath());
 

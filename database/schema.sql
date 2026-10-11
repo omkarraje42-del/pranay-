@@ -1,6 +1,9 @@
 -- ============================================================================
--- LIBRARY MANAGEMENT SYSTEM - DATABASE SCHEMA (PostgreSQL)
+-- LIBRARY MANAGEMENT SYSTEM - DATABASE SCHEMA (PostgreSQL / Supabase)
 -- ============================================================================
+
+-- Explicitly ensure public schema is targeted (prevents errors in Supabase)
+SET search_path = public;
 
 -- Drop existing tables in reverse dependency order
 DROP TABLE IF EXISTS audit_logs CASCADE;
@@ -225,3 +228,17 @@ CREATE INDEX idx_fines_status ON fines(status);
 
 CREATE INDEX idx_audit_user ON audit_logs(user_id);
 CREATE INDEX idx_audit_created ON audit_logs(created_at);
+
+-- Grant privileges for Supabase roles if executing in a Supabase environment
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+        GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+        GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+        GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+        GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+    END IF;
+END $$;
+

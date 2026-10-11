@@ -48,6 +48,20 @@ psql -U library_app -d library_db -f database/schema.sql
 psql -U library_app -d library_db -f database/seed.sql
 ```
 
+## Supabase Database Setup
+
+1. Open your **Supabase Dashboard** -> **SQL Editor**.
+2. Open [`database/supabase_setup.sql`](file:///c:/Users/Shardul/Desktop/zealous-oppenheimer/database/supabase_setup.sql).
+3. Paste the entire content into the SQL Editor and click **Run**.
+4. To connect your application to Supabase, configure your environment variables:
+   ```properties
+   DB_URL=jdbc:postgresql://db.<YOUR-PROJECT-REF>.supabase.co:5432/postgres?sslmode=require
+   DB_USERNAME=postgres
+   DB_PASSWORD=<YOUR-SUPABASE-DB-PASSWORD>
+   ```
+   *(Or using Supabase connection pooler on port 6543 for serverless environments)*
+
+
 ## Concurrency and Safety Features
 
 - **Pessimistic Row-Level Locking**: The checkout/issue service uses `SELECT ... FOR UPDATE` on `book_copies` within an ACID database transaction to strictly prevent race conditions where two librarians attempt to issue the same physical copy at the same millisecond.

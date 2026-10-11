@@ -1,6 +1,9 @@
 -- ============================================================================
--- LIBRARY MANAGEMENT SYSTEM - SEED DATA (PostgreSQL)
+-- LIBRARY MANAGEMENT SYSTEM - SEED DATA (PostgreSQL / Supabase)
 -- ============================================================================
+
+-- Explicitly ensure public schema is targeted (prevents errors in Supabase)
+SET search_path = public;
 
 -- 1. Insert Roles
 INSERT INTO roles (id, name, description) VALUES
@@ -9,13 +12,13 @@ INSERT INTO roles (id, name, description) VALUES
 (3, 'MEMBER', 'Library Member with access to catalog search, loan history and reservations')
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval('roles_id_seq', (SELECT MAX(id) FROM roles));
+SELECT setval(pg_get_serial_sequence('roles', 'id'), COALESCE((SELECT MAX(id) FROM roles), 1));
 
 -- 2. Insert Default Users
 -- Passwords:
--- admin: Admin@123 -> $2a$10$tM3NqB7t7z10Qn1JbZlZLe8m9A.gUvG.n13n0q2kR5b6u7y8i9o0p (standard test BCrypt hash)
--- librarian: Librarian@123 -> $2a$10$8K1p/a0dL1LXMIgoEDFrwOfMQv20b52rF5K43F29.U7LwVz6UaKsy
--- member1: Member@123 -> $2a$10$8K1p/a0dL1LXMIgoEDFrwOfMQv20b52rF5K43F29.U7LwVz6UaKsy
+-- admin: Admin@123
+-- librarian: Librarian@123
+-- johndoe & janesmith: Member@123
 INSERT INTO users (id, username, email, password_hash, role_id, first_name, last_name, phone, is_active) VALUES
 (1, 'admin', 'admin@library.edu', '$2a$12$eBDj1RjICB2yQ/VqTTZJP.c/MWMqquvTe9m3TzuZesczqB2tOk6ZO', 1, 'System', 'Administrator', '+1-555-0100', true),
 (2, 'librarian', 'librarian@library.edu', '$2a$12$DfSrnLiKwdG/WtUky8Qwf.0Ubgk1SyKyKxds087bA7rVceqJ6VHPu', 2, 'Sarah', 'Connor', '+1-555-0101', true),
@@ -23,7 +26,7 @@ INSERT INTO users (id, username, email, password_hash, role_id, first_name, last
 (4, 'janesmith', 'jane.smith@example.com', '$2a$12$rxMwP5cAoaKNahTV5CTF9..38F9etnqHQL5J44POYkyvY1hIlW.XS', 3, 'Jane', 'Smith', '+1-555-0103', true)
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
+SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE((SELECT MAX(id) FROM users), 1));
 
 -- 3. Insert Categories
 INSERT INTO categories (id, name, description) VALUES
@@ -34,7 +37,7 @@ INSERT INTO categories (id, name, description) VALUES
 (5, 'Business & Economics', 'Finance, management, economics, leadership, and entrepreneurship')
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval('categories_id_seq', (SELECT MAX(id) FROM categories));
+SELECT setval(pg_get_serial_sequence('categories', 'id'), COALESCE((SELECT MAX(id) FROM categories), 1));
 
 -- 4. Insert Authors
 INSERT INTO authors (id, first_name, last_name, biography, nationality) VALUES
@@ -47,7 +50,7 @@ INSERT INTO authors (id, first_name, last_name, biography, nationality) VALUES
 (7, 'Donald E.', 'Knuth', 'Computer scientist and author of The Art of Computer Programming.', 'American')
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval('authors_id_seq', (SELECT MAX(id) FROM authors));
+SELECT setval(pg_get_serial_sequence('authors', 'id'), COALESCE((SELECT MAX(id) FROM authors), 1));
 
 -- 5. Insert Publishers
 INSERT INTO publishers (id, name, contact_email, phone, website, address) VALUES
@@ -58,7 +61,7 @@ INSERT INTO publishers (id, name, contact_email, phone, website, address) VALUES
 (5, 'Packt Publishing', 'customercare@packt.com', '+44-121-265-6484', 'https://www.packtpub.com', 'Birmingham, UK')
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval('publishers_id_seq', (SELECT MAX(id) FROM publishers));
+SELECT setval(pg_get_serial_sequence('publishers', 'id'), COALESCE((SELECT MAX(id) FROM publishers), 1));
 
 -- 6. Insert Books
 INSERT INTO books (id, isbn, title, subtitle, category_id, publisher_id, publication_year, edition, language, description, shelf_location, cover_image_url, is_active) VALUES
@@ -71,7 +74,7 @@ INSERT INTO books (id, isbn, title, subtitle, category_id, publisher_id, publica
 (7, '978-0201485677', 'Refactoring', 'Improving the Design of Existing Code', 1, 1, 1999, '1st Edition', 'English', 'Explains the principles of refactoring along with step-by-step code transformations that improve program structure.', 'Shelf CS-D1', 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?w=400', true)
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval('books_id_seq', (SELECT MAX(id) FROM books));
+SELECT setval(pg_get_serial_sequence('books', 'id'), COALESCE((SELECT MAX(id) FROM books), 1));
 
 -- 7. Insert Book Authors
 INSERT INTO book_authors (book_id, author_id) VALUES
@@ -83,7 +86,7 @@ INSERT INTO book_authors (book_id, author_id) VALUES
 (5, 5), -- Introduction to Algorithms -> Thomas H. Cormen
 (6, 6), -- Domain-Driven Design -> Eric Evans
 (7, 2)  -- Refactoring -> Martin Fowler
-ON CONFLICT DO NOTHING;
+ON CONFLICT (book_id, author_id) DO NOTHING;
 
 -- 8. Insert Physical Book Copies
 INSERT INTO book_copies (id, book_id, accession_number, status, condition) VALUES
@@ -104,7 +107,7 @@ INSERT INTO book_copies (id, book_id, accession_number, status, condition) VALUE
 (15, 7, 'ACC-0015', 'AVAILABLE', 'Good')
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval('book_copies_id_seq', (SELECT MAX(id) FROM book_copies));
+SELECT setval(pg_get_serial_sequence('book_copies', 'id'), COALESCE((SELECT MAX(id) FROM book_copies), 1));
 
 -- 9. Insert Members
 INSERT INTO members (id, user_id, membership_number, first_name, last_name, email, phone, address, membership_start_date, membership_expiry_date, status) VALUES
@@ -115,23 +118,23 @@ INSERT INTO members (id, user_id, membership_number, first_name, last_name, emai
 (5, NULL, 'LIB-2024-005', 'Michael', 'Johnson', 'michael.j@example.com', '+1-555-0106', '202 Oak Ave, Denver, CO', '2024-04-01', '2027-12-31', 'ACTIVE')
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval('members_id_seq', (SELECT MAX(id) FROM members));
+SELECT setval(pg_get_serial_sequence('members', 'id'), COALESCE((SELECT MAX(id) FROM members), 1));
 
 -- 10. Insert Loans (Past and Active)
 INSERT INTO loans (id, book_copy_id, member_id, issued_by, returned_by, issue_date, due_date, return_date, status, notes) VALUES
 -- Active loan within due date
-(1, 3, 1, 2, NULL, CURRENT_DATE - INTERVAL '5 days', CURRENT_DATE + INTERVAL '9 days', NULL, 'ACTIVE', 'Regular loan'),
+(1, 3, 1, 2, NULL, (CURRENT_DATE - INTERVAL '5 days')::date, (CURRENT_DATE + INTERVAL '9 days')::date, NULL, 'ACTIVE', 'Regular loan'),
 -- Active overdue loan
-(2, 7, 2, 2, NULL, CURRENT_DATE - INTERVAL '20 days', CURRENT_DATE - INTERVAL '6 days', NULL, 'OVERDUE', 'Past due date'),
+(2, 7, 2, 2, NULL, (CURRENT_DATE - INTERVAL '20 days')::date, (CURRENT_DATE - INTERVAL '6 days')::date, NULL, 'OVERDUE', 'Past due date'),
 -- Active loan
-(3, 11, 3, 2, NULL, CURRENT_DATE - INTERVAL '10 days', CURRENT_DATE + INTERVAL '4 days', NULL, 'ACTIVE', 'Algorithmic study reference'),
+(3, 11, 3, 2, NULL, (CURRENT_DATE - INTERVAL '10 days')::date, (CURRENT_DATE + INTERVAL '4 days')::date, NULL, 'ACTIVE', 'Algorithmic study reference'),
 -- Returned on time
-(4, 1, 1, 2, 2, CURRENT_DATE - INTERVAL '30 days', CURRENT_DATE - INTERVAL '16 days', CURRENT_DATE - INTERVAL '18 days', 'RETURNED', 'Returned in good condition'),
+(4, 1, 1, 2, 2, (CURRENT_DATE - INTERVAL '30 days')::date, (CURRENT_DATE - INTERVAL '16 days')::date, (CURRENT_DATE - INTERVAL '18 days')::date, 'RETURNED', 'Returned in good condition'),
 -- Returned late with fine
-(5, 5, 2, 2, 2, CURRENT_DATE - INTERVAL '40 days', CURRENT_DATE - INTERVAL '26 days', CURRENT_DATE - INTERVAL '20 days', 'RETURNED', 'Returned 6 days late')
+(5, 5, 2, 2, 2, (CURRENT_DATE - INTERVAL '40 days')::date, (CURRENT_DATE - INTERVAL '26 days')::date, (CURRENT_DATE - INTERVAL '20 days')::date, 'RETURNED', 'Returned 6 days late')
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval('loans_id_seq', (SELECT MAX(id) FROM loans));
+SELECT setval(pg_get_serial_sequence('loans', 'id'), COALESCE((SELECT MAX(id) FROM loans), 1));
 
 -- 11. Insert Fines
 INSERT INTO fines (id, loan_id, member_id, amount, reason, status, created_at, paid_at, payment_method, receipt_number) VALUES
@@ -141,14 +144,14 @@ INSERT INTO fines (id, loan_id, member_id, amount, reason, status, created_at, p
 (2, 2, 2, 30.00, 'Overdue book loan (6 days)', 'UNPAID', CURRENT_TIMESTAMP - INTERVAL '1 day', NULL, NULL, NULL)
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval('fines_id_seq', (SELECT MAX(id) FROM fines));
+SELECT setval(pg_get_serial_sequence('fines', 'id'), COALESCE((SELECT MAX(id) FROM fines), 1));
 
 -- 12. Insert Reservations
 INSERT INTO reservations (id, book_id, member_id, reservation_date, status, priority, notes) VALUES
 (1, 6, 1, CURRENT_TIMESTAMP - INTERVAL '2 days', 'READY_FOR_PICKUP', 1, 'Notification sent to member')
 ON CONFLICT (id) DO NOTHING;
 
-SELECT setval('reservations_id_seq', (SELECT MAX(id) FROM reservations));
+SELECT setval(pg_get_serial_sequence('reservations', 'id'), COALESCE((SELECT MAX(id) FROM reservations), 1));
 
 -- 13. Insert Library Settings
 INSERT INTO library_settings (setting_key, setting_value, description) VALUES
@@ -162,6 +165,11 @@ INSERT INTO library_settings (setting_key, setting_value, description) VALUES
 ('currency_symbol', '₹', 'Currency symbol used across system')
 ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value;
 
+SELECT setval(pg_get_serial_sequence('library_settings', 'id'), COALESCE((SELECT MAX(id) FROM library_settings), 1));
+
 -- 14. Insert Initial Audit Log
-INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details, ip_address) VALUES
-(1, 'SYSTEM_INIT', 'SYSTEM', 1, 'Initial database schema and seed data loaded successfully', '127.0.0.1');
+INSERT INTO audit_logs (id, user_id, action, entity_type, entity_id, details, ip_address) VALUES
+(1, 1, 'SYSTEM_INIT', 'SYSTEM', 1, 'Initial database schema and seed data loaded successfully', '127.0.0.1')
+ON CONFLICT (id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('audit_logs', 'id'), COALESCE((SELECT MAX(id) FROM audit_logs), 1));
