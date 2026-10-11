@@ -50,18 +50,73 @@ public class DatabaseConfig {
                 logger.debug("No db.properties file found on classpath, relying on environment defaults");
             }
 
-            String jdbcUrl = getEnvOrProp("DB_URL", props, null);
-            if (jdbcUrl == null || jdbcUrl.trim().isEmpty()) {
+            String rawUrl = getEnvOrProp("DB_URL", props, null);
+            String user = getEnvOrProp("DB_USERNAME", props, null);
+            String pass = getEnvOrProp("DB_PASSWORD", props, null);
+            String sslMode = getEnvOrProp("DB_SSLMODE", props, null);
+
+            String jdbcUrl;
+            if (rawUrl != null && !rawUrl.trim().isEmpty()) {
+                rawUrl = rawUrl.trim();
+
+                // If URI format: postgresql://user:pass@host:port/dbname or postgres://user:pass@...
+                if (rawUrl.startsWith("postgres://") || rawUrl.startsWith("postgresql://")) {
+                    try {
+                        String cleanUri = rawUrl.startsWith("postgres://") 
+                                ? "http://" + rawUrl.substring("postgres://".length()) 
+                                : "http://" + rawUrl.substring("postgresql://".length());
+                        java.net.URI uri = java.net.URI.create(cleanUri);
+                        if (uri.getUserInfo() != null) {
+                            String[] userParts = uri.getUserInfo().split(":", 2);
+                            if (user == null || user.isEmpty()) {
+                                user = userParts[0];
+                            }
+                            if (userParts.length > 1 && (pass == null || pass.isEmpty())) {
+                                pass = java.net.URLDecoder.decode(userParts[1], java.nio.charset.StandardCharsets.UTF_8);
+                            }
+                        }
+                        int portNum = uri.getPort() > 0 ? uri.getPort() : 5432;
+                        String path = uri.getPath();
+                        if (path != null && path.startsWith("/")) path = path.substring(1);
+                        rawUrl = "jdbc:postgresql://" + uri.getHost() + ":" + portNum + "/" + (path != null ? path : "postgres");
+                        if (uri.getQuery() != null && !uri.getQuery().isEmpty()) {
+                            rawUrl += "?" + uri.getQuery();
+                        }
+                    } catch (Exception e) {
+                        logger.warn("Could not parse DB_URL as URI, using as-is with jdbc: prefix: {}", e.getMessage());
+                        if (rawUrl.startsWith("postgres://")) {
+                            rawUrl = "jdbc:postgresql://" + rawUrl.substring("postgres://".length());
+                        } else if (!rawUrl.startsWith("jdbc:")) {
+                            rawUrl = "jdbc:" + rawUrl;
+                        }
+                    }
+                } else if (!rawUrl.startsWith("jdbc:")) {
+                    rawUrl = "jdbc:" + rawUrl;
+                }
+
+                // If connecting to Supabase / cloud database, ensure sslmode=require
+                if (!rawUrl.contains("sslmode=")) {
+                    String ssl = (sslMode != null && !sslMode.isEmpty()) ? sslMode : (rawUrl.contains("supabase.co") ? "require" : null);
+                    if (ssl != null) {
+                        rawUrl += (rawUrl.contains("?") ? "&" : "?") + "sslmode=" + ssl;
+                    }
+                }
+                jdbcUrl = rawUrl;
+            } else {
                 String host = getEnvOrProp("DB_HOST", props, "localhost");
                 String port = getEnvOrProp("DB_PORT", props, "5432");
                 String dbName = getEnvOrProp("DB_NAME", props, "library_db");
-                String sslMode = getEnvOrProp("DB_SSLMODE", props, null);
                 jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + dbName + 
                         (sslMode != null && !sslMode.isEmpty() ? "?sslmode=" + sslMode : "");
             }
 
-            String user = getEnvOrProp("DB_USERNAME", props, "library_app");
-            String pass = getEnvOrProp("DB_PASSWORD", props, "library_secret");
+            // Defaults if not provided
+            if (user == null || user.isEmpty()) {
+                user = jdbcUrl.contains("supabase.co") ? "postgres" : "library_app";
+            }
+            if (pass == null || pass.isEmpty()) {
+                pass = "library_secret";
+            }
 
             HikariConfig config = new HikariConfig();
             config.setJdbcUrl(jdbcUrl);
