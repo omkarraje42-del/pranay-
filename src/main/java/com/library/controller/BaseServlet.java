@@ -79,8 +79,12 @@ public abstract class BaseServlet extends HttpServlet {
             sendJson(resp, HttpServletResponse.SC_CONFLICT, ApiResponse.error(e.getMessage()));
         } else {
             logger.error("Unexpected server exception in API controller", e);
+            String detail = (e.getMessage() != null && !e.getMessage().trim().isEmpty()) ? e.getMessage() : e.toString();
+            if (e.getCause() != null && e.getCause().getMessage() != null) {
+                detail += " -> " + e.getCause().getMessage();
+            }
             sendJson(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    ApiResponse.error("An unexpected internal error occurred. Please contact the administrator."));
+                    ApiResponse.error(detail));
         }
     }
 }
