@@ -41,6 +41,7 @@ public class Main {
             // 2. Configure Embedded Tomcat 10.1
             Tomcat tomcat = new Tomcat();
             tomcat.setPort(port);
+            tomcat.getServer().setPort(-1); // Disable shutdown port so health check probes don't trigger shutdown warnings
             tomcat.getConnector(); // Initialize default HTTP connector
 
             // Base directory for Tomcat work files
