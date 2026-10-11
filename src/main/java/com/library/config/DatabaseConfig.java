@@ -50,13 +50,18 @@ public class DatabaseConfig {
                 logger.debug("No db.properties file found on classpath, relying on environment defaults");
             }
 
-            String host = getEnvOrProp("DB_HOST", props, "localhost");
-            String port = getEnvOrProp("DB_PORT", props, "5432");
-            String dbName = getEnvOrProp("DB_NAME", props, "library_db");
+            String jdbcUrl = getEnvOrProp("DB_URL", props, null);
+            if (jdbcUrl == null || jdbcUrl.trim().isEmpty()) {
+                String host = getEnvOrProp("DB_HOST", props, "localhost");
+                String port = getEnvOrProp("DB_PORT", props, "5432");
+                String dbName = getEnvOrProp("DB_NAME", props, "library_db");
+                String sslMode = getEnvOrProp("DB_SSLMODE", props, null);
+                jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + dbName + 
+                        (sslMode != null && !sslMode.isEmpty() ? "?sslmode=" + sslMode : "");
+            }
+
             String user = getEnvOrProp("DB_USERNAME", props, "library_app");
             String pass = getEnvOrProp("DB_PASSWORD", props, "library_secret");
-
-            String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + dbName;
 
             HikariConfig config = new HikariConfig();
             config.setJdbcUrl(jdbcUrl);
