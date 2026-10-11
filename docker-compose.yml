@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # Relational Database: PostgreSQL 16
+  db:
+    image: postgres:16-alpine
+    container_name: library_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: library_db
+      POSTGRES_USER: library_app
+      POSTGRES_PASSWORD: library_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U library_app -d library_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # J2EE Application Server: Apache Tomcat 10.1
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: library_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: library_db
+      DB_USER: library_app
+      DB_PASSWORD: library_secret
+      SERVER_PORT: 8080
+      BOOTSTRAP_ADMIN_USER: admin
+      BOOTSTRAP_ADMIN_EMAIL: admin@library.edu
+      BOOTSTRAP_ADMIN_PASS: Admin@123
+
+volumes:
+  pgdata:
+    driver: local

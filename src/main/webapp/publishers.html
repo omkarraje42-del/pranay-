@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Publishers - Library Management System</title>
+    <!-- Bootstrap 5 CSS & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<div class="app-wrapper">
+    <aside id="sidebar-container"></aside>
+
+    <div class="main-wrapper">
+        <header id="header-container"></header>
+
+        <main class="content-container">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                <div>
+                    <h5 class="fw-bold mb-1">Book Publishers</h5>
+                    <p class="text-muted small mb-0">Manage publishing houses, contact information, and website directories</p>
+                </div>
+                <button class="btn btn-primary d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#pubModal" onclick="openCreatePublisherModal()" data-role="STAFF">
+                    <i class="bi bi-building-add"></i>
+                    <span>Add Publisher</span>
+                </button>
+            </div>
+
+            <!-- Publishers Table -->
+            <div class="app-card">
+                <div class="table-responsive">
+                    <table class="table table-custom table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px;">#</th>
+                                <th>Publisher Name</th>
+                                <th>Contact Information</th>
+                                <th>Website</th>
+                                <th>Address</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="publisherTableBody">
+                            <tr><td colspan="6" class="text-center py-5 text-muted">Loading publishers...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- Modal: Publisher -->
+<div class="modal fade" id="pubModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="pubModalTitle">Add Publisher</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="pubForm">
+                <div class="modal-body">
+                    <input type="hidden" id="pubId">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Publisher Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="pubName" required placeholder="e.g. O'Reilly Media">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Contact Email</label>
+                        <input type="email" class="form-control" id="pubEmail" placeholder="contact@publisher.com">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Phone</label>
+                        <input type="text" class="form-control" id="pubPhone" placeholder="+1-555-0100">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Website</label>
+                        <input type="url" class="form-control" id="pubWebsite" placeholder="https://...">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Address</label>
+                        <textarea class="form-control" id="pubAddress" rows="2" placeholder="Corporate headquarters..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-semibold" id="savePubBtn">Save Publisher</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/layout.js"></script>
+<script src="assets/js/auth.js"></script>
+<script>
+    Layout.render('Book Publishers');
+    let pubModalInstance = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        pubModalInstance = new bootstrap.Modal(document.getElementById('pubModal'));
+        loadPublishers();
+        document.getElementById('pubForm').onsubmit = handleSavePublisher;
+    });
+
+    async function loadPublishers() {
+        const tbody = document.getElementById('publisherTableBody');
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading...</td></tr>';
+        try {
+            const resp = await API.get('/api/publishers');
+            if (!resp || !resp.success) return;
+
+            const list = resp.data || [];
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No publishers created yet</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = list.map(p => `
+                <tr>
+                    <td><code>#${p.id}</code></td>
+                    <td class="fw-bold text-dark">${p.name}</td>
+                    <td>
+                        <div><small>${p.contactEmail || '—'}</small></div>
+                        <small class="text-muted">${p.phone || ''}</small>
+                    </td>
+                    <td>${p.website ? `<a href="${p.website}" target="_blank" class="small text-decoration-none"><i class="bi bi-box-arrow-up-right me-1"></i>Website</a>` : '—'}</td>
+                    <td><small class="text-muted">${p.address || '—'}</small></td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm" data-role="STAFF">
+                            <button class="btn btn-outline-secondary" onclick="openEditPublisherModal(${p.id}, '${escapeQuote(p.name)}', '${escapeQuote(p.contactEmail)}', '${escapeQuote(p.phone)}', '${escapeQuote(p.website)}', '${escapeQuote(p.address)}')">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="deletePublisher(${p.id}, '${escapeQuote(p.name)}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+
+            Auth.applyRoleRestrictions();
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Error: ${e.message}</td></tr>`;
+        }
+    }
+
+    function openCreatePublisherModal() {
+        document.getElementById('pubModalTitle').textContent = 'Add Publisher';
+        document.getElementById('pubForm').reset();
+        document.getElementById('pubId').value = '';
+    }
+
+    function openEditPublisherModal(id, name, email, phone, web, addr) {
+        document.getElementById('pubModalTitle').textContent = 'Edit Publisher';
+        document.getElementById('pubId').value = id;
+        document.getElementById('pubName').value = name;
+        document.getElementById('pubEmail').value = email || '';
+        document.getElementById('pubPhone').value = phone || '';
+        document.getElementById('pubWebsite').value = web || '';
+        document.getElementById('pubAddress').value = addr || '';
+        pubModalInstance.show();
+    }
+
+    async function handleSavePublisher(e) {
+        e.preventDefault();
+        const id = document.getElementById('pubId').value;
+        const payload = {
+            name: document.getElementById('pubName').value.trim(),
+            contactEmail: document.getElementById('pubEmail').value.trim() || null,
+            phone: document.getElementById('pubPhone').value.trim() || null,
+            website: document.getElementById('pubWebsite').value.trim() || null,
+            address: document.getElementById('pubAddress').value.trim() || null
+        };
+
+        const btn = document.getElementById('savePubBtn');
+        btn.disabled = true;
+
+        try {
+            if (id) {
+                await API.put(`/api/publishers/${id}`, payload);
+                UI.toast('Publisher updated successfully', 'success');
+            } else {
+                await API.post('/api/publishers', payload);
+                UI.toast('Publisher created successfully', 'success');
+            }
+            pubModalInstance.hide();
+            loadPublishers();
+        } catch (err) {
+            UI.toast(err.message, 'error');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function deletePublisher(id, name) {
+        UI.confirm(
+            'Delete Publisher',
+            `Are you sure you want to delete publisher "${name}"?`,
+            async () => {
+                try {
+                    await API.delete(`/api/publishers/${id}`);
+                    UI.toast('Publisher deleted', 'success');
+                    loadPublishers();
+                } catch (err) {
+                    UI.toast(err.message, 'error');
+                }
+            }
+        );
+    }
+
+    function escapeQuote(str) {
+        if (!str) return '';
+        return str.replace(/'/g, "\\'");
+    }
+</script>
+</body>
+</html>

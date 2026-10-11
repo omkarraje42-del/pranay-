@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authors - Library Management System</title>
+    <!-- Bootstrap 5 CSS & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<div class="app-wrapper">
+    <aside id="sidebar-container"></aside>
+
+    <div class="main-wrapper">
+        <header id="header-container"></header>
+
+        <main class="content-container">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+                <div>
+                    <h5 class="fw-bold mb-1">Book Authors</h5>
+                    <p class="text-muted small mb-0">Manage author profiles, biographies, and nationalities</p>
+                </div>
+                <button class="btn btn-primary d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#authorModal" onclick="openCreateAuthorModal()" data-role="STAFF">
+                    <i class="bi bi-person-plus-fill"></i>
+                    <span>Add Author</span>
+                </button>
+            </div>
+
+            <!-- Authors Table -->
+            <div class="app-card">
+                <div class="table-responsive">
+                    <table class="table table-custom table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px;">#</th>
+                                <th>Author Name</th>
+                                <th>Nationality</th>
+                                <th>Biography</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="authorTableBody">
+                            <tr><td colspan="5" class="text-center py-5 text-muted">Loading authors...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- Modal: Author -->
+<div class="modal fade" id="authorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="authorModalTitle">Add Author</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="authorForm">
+                <div class="modal-body">
+                    <input type="hidden" id="authorId">
+                    <div class="row g-2">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-semibold">First Name</label>
+                            <input type="text" class="form-control" id="authorFirstName" placeholder="Robert C.">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label small fw-semibold">Last Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="authorLastName" required placeholder="Martin">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Nationality</label>
+                        <input type="text" class="form-control" id="authorNationality" placeholder="e.g. American">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Biography</label>
+                        <textarea class="form-control" id="authorBiography" rows="3" placeholder="Author background..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm fw-semibold" id="saveAuthorBtn">Save Author</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/layout.js"></script>
+<script src="assets/js/auth.js"></script>
+<script>
+    Layout.render('Book Authors');
+    let authorModalInstance = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        authorModalInstance = new bootstrap.Modal(document.getElementById('authorModal'));
+        loadAuthors();
+        document.getElementById('authorForm').onsubmit = handleSaveAuthor;
+    });
+
+    async function loadAuthors() {
+        const tbody = document.getElementById('authorTableBody');
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading...</td></tr>';
+        try {
+            const resp = await API.get('/api/authors', { all: true });
+            if (!resp || !resp.success) return;
+
+            const list = resp.data || [];
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No authors created yet</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = list.map(a => `
+                <tr>
+                    <td><code>#${a.id}</code></td>
+                    <td class="fw-bold text-dark">${a.fullName}</td>
+                    <td><span class="badge bg-light text-secondary border">${a.nationality || 'Unspecified'}</span></td>
+                    <td><small class="text-muted">${a.biography || '—'}</small></td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm" data-role="STAFF">
+                            <button class="btn btn-outline-secondary" onclick="openEditAuthorModal(${a.id}, '${escapeQuote(a.firstName)}', '${escapeQuote(a.lastName)}', '${escapeQuote(a.nationality)}', '${escapeQuote(a.biography)}')">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="deleteAuthor(${a.id}, '${escapeQuote(a.fullName)}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+
+            Auth.applyRoleRestrictions();
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">Error: ${e.message}</td></tr>`;
+        }
+    }
+
+    function openCreateAuthorModal() {
+        document.getElementById('authorModalTitle').textContent = 'Add Author';
+        document.getElementById('authorForm').reset();
+        document.getElementById('authorId').value = '';
+    }
+
+    function openEditAuthorModal(id, first, last, nat, bio) {
+        document.getElementById('authorModalTitle').textContent = 'Edit Author';
+        document.getElementById('authorId').value = id;
+        document.getElementById('authorFirstName').value = first || '';
+        document.getElementById('authorLastName').value = last || '';
+        document.getElementById('authorNationality').value = nat || '';
+        document.getElementById('authorBiography').value = bio || '';
+        authorModalInstance.show();
+    }
+
+    async function handleSaveAuthor(e) {
+        e.preventDefault();
+        const id = document.getElementById('authorId').value;
+        const firstName = document.getElementById('authorFirstName').value.trim();
+        const lastName = document.getElementById('authorLastName').value.trim();
+        const nationality = document.getElementById('authorNationality').value.trim();
+        const biography = document.getElementById('authorBiography').value.trim();
+
+        const btn = document.getElementById('saveAuthorBtn');
+        btn.disabled = true;
+
+        try {
+            if (id) {
+                await API.put(`/api/authors/${id}`, { firstName, lastName, nationality, biography });
+                UI.toast('Author updated successfully', 'success');
+            } else {
+                await API.post('/api/authors', { firstName, lastName, nationality, biography });
+                UI.toast('Author created successfully', 'success');
+            }
+            authorModalInstance.hide();
+            loadAuthors();
+        } catch (err) {
+            UI.toast(err.message, 'error');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function deleteAuthor(id, name) {
+        UI.confirm(
+            'Delete Author',
+            `Are you sure you want to delete author "${name}"?`,
+            async () => {
+                try {
+                    await API.delete(`/api/authors/${id}`);
+                    UI.toast('Author deleted', 'success');
+                    loadAuthors();
+                } catch (err) {
+                    UI.toast(err.message, 'error');
+                }
+            }
+        );
+    }
+
+    function escapeQuote(str) {
+        if (!str) return '';
+        return str.replace(/'/g, "\\'");
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+name: Java CI with Maven
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: library_db
+          POSTGRES_USER: library_app
+          POSTGRES_PASSWORD: library_secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Set up OpenJDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+
+    - name: Initialize PostgreSQL database schema and seed data
+      env:
+        PGPASSWORD: library_secret
+      run: |
+        psql -h localhost -U library_app -d library_db -f database/schema.sql
+        psql -h localhost -U library_app -d library_db -f database/seed.sql
+
+    - name: Build and execute automated test suite
+      run: mvn -B clean test
+
+    - name: Package WAR artifact
+      run: mvn -B package -DskipTests
+
+    - name: Upload WAR artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: library-management-system-j2ee-war
+        path: target/library-management-system-j2ee.war

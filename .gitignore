@@ -1,0 +1,29 @@
+# Maven build output
+target/
+*.war
+*.jar
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# Environment variables & secrets
+.env
+*.local
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Tomcat runtime work directories
+tomcat.*/
+work/
+temp/
