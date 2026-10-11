@@ -109,6 +109,34 @@ docker-compose up -d --build
 
 ---
 
+## Cloud Deployment (Zero Docker: Render + Supabase)
+
+You can deploy the entire application directly to the cloud without using Docker:
+
+### Step 1: Set Up Supabase Database
+1. Go to [supabase.com](https://supabase.com) and create a free project.
+2. Go to **SQL Editor** in the Supabase Dashboard.
+3. Copy the contents of [`database/supabase_setup.sql`](database/supabase_setup.sql), paste into the editor, and click **Run**.
+4. In your Supabase Project Settings ➔ **Database**, copy your **Connection String** (URI or JDBC format).
+
+### Step 2: Deploy to Render
+1. Push your repository to **GitHub**.
+2. Go to [render.com](https://render.com) and click **New +** ➔ **Web Service** (or use the blueprint with `render.yaml`).
+3. Connect your GitHub repository.
+4. Configure service settings:
+   - **Runtime**: `Java`
+   - **Build Command**: `mvn clean package -DskipTests`
+   - **Start Command**: `java -cp "target/classes:target/dependency/*" com.library.Main`
+5. Add the following **Environment Variables**:
+   - `DB_URL`: `jdbc:postgresql://db.<YOUR-PROJECT-REF>.supabase.co:5432/postgres?sslmode=require`
+   - `DB_USERNAME`: `postgres`
+   - `DB_PASSWORD`: `<YOUR-SUPABASE-DB-PASSWORD>`
+   - `DB_SSLMODE`: `require`
+6. Click **Deploy Web Service**. Render builds the Maven project, copies dependencies, and starts the embedded Tomcat server on its assigned port automatically.
+
+---
+
+
 ## Local Setup Without Docker
 
 ### Prerequisites
