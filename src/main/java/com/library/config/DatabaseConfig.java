@@ -59,6 +59,42 @@ public class DatabaseConfig {
             if (rawUrl != null && !rawUrl.trim().isEmpty()) {
                 rawUrl = rawUrl.trim();
 
+                // Fix accidental copy-paste duplication (e.g. "jdbc:postgresql://aws-0-ap-south-jdbc:postgresql://...")
+                int lastJdbcIndex = rawUrl.lastIndexOf("jdbc:postgresql://");
+                if (lastJdbcIndex > 0) {
+                    rawUrl = rawUrl.substring(lastJdbcIndex);
+                } else {
+                    int lastPgIndex = rawUrl.lastIndexOf("postgresql://");
+                    if (lastPgIndex > 0) {
+                        rawUrl = rawUrl.substring(lastPgIndex);
+                    }
+                }
+
+                // If user embedded query params like ?user=...&password=... extract them so special chars don't break JDBC URL
+                if (rawUrl.contains("user=") || rawUrl.contains("password=")) {
+                    int qIdx = rawUrl.indexOf('?');
+                    if (qIdx != -1) {
+                        String query = rawUrl.substring(qIdx + 1);
+                        String base = rawUrl.substring(0, qIdx);
+                        StringBuilder newQuery = new StringBuilder();
+                        for (String param : query.split("&")) {
+                            if (param.startsWith("user=")) {
+                                if (user == null || user.isEmpty()) {
+                                    user = param.substring(5);
+                                }
+                            } else if (param.startsWith("password=")) {
+                                if (pass == null || pass.isEmpty()) {
+                                    pass = param.substring(9);
+                                }
+                            } else {
+                                if (newQuery.length() > 0) newQuery.append("&");
+                                newQuery.append(param);
+                            }
+                        }
+                        rawUrl = base + (newQuery.length() > 0 ? "?" + newQuery.toString() : "");
+                    }
+                }
+
                 // If URI format: postgresql://user:pass@host:port/dbname or postgres://user:pass@...
                 if (rawUrl.startsWith("postgres://") || rawUrl.startsWith("postgresql://")) {
                     try {
@@ -75,10 +111,10 @@ public class DatabaseConfig {
                                 pass = java.net.URLDecoder.decode(userParts[1], java.nio.charset.StandardCharsets.UTF_8);
                             }
                         }
-                        int portNum = uri.getPort() > 0 ? uri.getPort() : 5432;
+                        int portNum = uri.getPort() > 0 ? uri.getPort() : 6543;
                         String path = uri.getPath();
                         if (path != null && path.startsWith("/")) path = path.substring(1);
-                        rawUrl = "jdbc:postgresql://" + uri.getHost() + ":" + portNum + "/" + (path != null ? path : "postgres");
+                        rawUrl = "jdbc:postgresql://" + uri.getHost() + ":" + portNum + "/" + (path != null && !path.isEmpty() ? path : "postgres");
                         if (uri.getQuery() != null && !uri.getQuery().isEmpty()) {
                             rawUrl += "?" + uri.getQuery();
                         }
@@ -96,7 +132,7 @@ public class DatabaseConfig {
 
                 // If connecting to Supabase / cloud database, ensure sslmode=require
                 if (!rawUrl.contains("sslmode=")) {
-                    String ssl = (sslMode != null && !sslMode.isEmpty()) ? sslMode : (rawUrl.contains("supabase.co") ? "require" : null);
+                    String ssl = (sslMode != null && !sslMode.isEmpty()) ? sslMode : (rawUrl.contains("supabase.") ? "require" : null);
                     if (ssl != null) {
                         rawUrl += (rawUrl.contains("?") ? "&" : "?") + "sslmode=" + ssl;
                     }
@@ -112,7 +148,7 @@ public class DatabaseConfig {
 
             // Defaults if not provided
             if (user == null || user.isEmpty()) {
-                user = jdbcUrl.contains("supabase.co") ? "postgres" : "library_app";
+                user = jdbcUrl.contains("supabase.") ? "postgres" : "library_app";
             }
             if (pass == null || pass.isEmpty()) {
                 pass = "library_secret";
